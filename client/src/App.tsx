@@ -19,6 +19,7 @@ import { DeviceProfileViewerPage } from './DeviceProfile'
 import { UploadMediaPage } from './UploadMedia'
 import { AudioPage } from './Audio'
 import { ReactComponent } from '*.svg'
+import { CameraPage } from './CameraControl'
 const LOCAL_STORAGE_ACTIVE_DEVICE_ID = 'AtemUI.MainContext.ActiveDeviceId'
 
 enum ConnectionStatus {
@@ -227,6 +228,10 @@ export default class App extends React.Component<{}, AppState> {
                 <Route path="/audio">
                   <AudioPage />
                 </Route>
+
+                <Route path="/camera">
+                  <CameraPage />
+                </Route>
               </Switch>
             ) : (
                 ''
@@ -251,13 +256,6 @@ function Home() {
 
 class NavBar extends React.PureComponent<{ devices: AtemDeviceInfo[], setDevice: (_: string | undefined) => void, activeDeviceId: string | null }>{
 
-
-  // shouldComponentUpdate(nextProps: { devices: AtemDeviceInfo[], setDevice: (_: string | undefined) => void, activeDeviceId: string | null }) {
-  //   var deviceInfoChanged = JSON.stringify(this.props.devices) !== JSON.stringify(nextProps.devices)
-  //   var activeDevice = this.props.activeDeviceId !== nextProps.activeDeviceId
-  //   // console.log(activeDevice,deviceInfoChanged)
-  //   return deviceInfoChanged || activeDevice
-  // }
 
   renderDeviceSelection() {
     const availableDevices = this.props.devices.filter(isDeviceAvailable)
@@ -315,6 +313,9 @@ class NavBar extends React.PureComponent<{ devices: AtemDeviceInfo[], setDevice:
             </LinkContainer>
             <LinkContainer to="/audio">
               <Nav.Link>Audio</Nav.Link>
+            </LinkContainer>
+            <LinkContainer to="/camera">
+              <Nav.Link>Camera</Nav.Link>
             </LinkContainer>
           </Nav>
           <Form inline>

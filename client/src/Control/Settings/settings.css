@@ -54,7 +54,7 @@
     border: solid 1px #131313;
     text-align: center;
     font-size:12px;
-    color:#5e5e5e;
+    color:#7e7e7e;
     line-height: 20px;
     user-select: none;
     /* padding-top: 2px; */
@@ -225,14 +225,6 @@
         column-gap: 10px;
     }
 
-    /* .ss-rate-label{
-        width:fit-content;
-        line-height:30px;
-        margin-right:10px;
-        font-size:13px;
-        color:#858585;
-        /* float:left; */
-    /* } */ 
 
     .ss-checkbox-container {
         /* display: block; */
@@ -343,15 +335,11 @@
         line-height: 25px;
       }
 
-      .ss-label-hover{
-          position:absolute;
-          width:400px;
-          left:-200px;
-          height:400px;
-          top:-200px;
-          z-index:20;
-          background:red;
-      }
+      .ss-label.active{
+          color:orange;
+      } 
+
+     
       .ss-label.right{
           text-align: right;
       }

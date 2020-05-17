@@ -2,12 +2,10 @@ import React from 'react'
 import './control.css'
 import { AtemDeviceInfo } from '../Devices/types'
 import { GetActiveDevice, DeviceManagerContext, GetDeviceId } from '../DeviceManager'
-import OutsideClickHandler from 'react-outside-click-handler';
 import { SwitcherSettings, RateInput } from "./Settings/settings"
 import { AtemButtonRed, AtemButtonGreen, AtemButtonYellow, AtemButtonOnAir, AtemButtonFTB } from './button/button';
 import { videoIds } from '../ControlSettings/ids';
 import MediaQuery, { useMediaQuery } from 'react-responsive'
-import { createSecretKey } from 'crypto';
 
 export class ControlPage extends React.Component {
   context!: React.ContextType<typeof DeviceManagerContext>
@@ -21,11 +19,8 @@ export class ControlPage extends React.Component {
         return (
 
           <ControlPageInnerInner
-            
             key={this.context.activeDeviceId || ''}
             device={device}
-            currentState={this.context.currentState}
-            // currentState={this.state.currentState}
             signalR={this.context.signalR}
           />
 
@@ -42,7 +37,6 @@ export class ControlPage extends React.Component {
 interface ControlPageInnerInnerProps {
   device: AtemDeviceInfo
   signalR: signalR.HubConnection | undefined
-  currentState: any
 }
 interface ControlPageInnerInnerState {
   open: boolean
@@ -80,10 +74,7 @@ class ControlPageInnerInner extends React.Component<ControlPageInnerInnerProps, 
   }
 
 
-
   render() {
-
-
     return (
       <MediaQuery minWidth='950px'>
         {(matches)=> matches?
@@ -98,9 +89,7 @@ class ControlPageInnerInner extends React.Component<ControlPageInnerInnerProps, 
               signalR={this.props.signalR}
             />
 
-
             <div onClick={() => { this.setState({ open: false }) }} className="open-button"><svg style={{ position: "absolute", top: "7px" }} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="orange" width="25px" height="25px"><path d="M0 0h24v24H0V0z" fill="none" /><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" /></svg></div>
-
 
             <SwitcherSettings
               full={false}
@@ -168,12 +157,8 @@ class ControlPageInnerInner extends React.Component<ControlPageInnerInnerProps, 
             open={this.state.open}
             signalR={this.props.signalR}
           />
-
-
         </div>
-
   }
-
       </MediaQuery>
     )
   }
@@ -248,24 +233,6 @@ class ControlPageInner extends React.Component<ControlPageInnerProps, ControlPag
   }
 
 
-
-  componentDidUpdate(prevProps: ControlPageInnerProps) {
-    // Should we reload the commandsSpec
-    if (
-      !this.state.hasConnected &&
-      this.props.device.connected // Device first connection
-    ) {
-      this.setState({
-        // TODO - should this be delayed as old data is good enough to get us started
-        state: null,
-        hasConnected: true
-      })
-      // now reload
-    }
-  }
-
-
-
   render() {
     const { device, currentState, signalR } = this.props
     const { hasConnected } = this.state
@@ -279,13 +246,13 @@ class ControlPageInner extends React.Component<ControlPageInnerProps, ControlPag
     return (
       <div className={(this.props.open)?"page-wrapper-control open":"page-wrapper-control"}>
 
-        <Program currentState={this.props.currentState} sendCommand={(command: string, values: any) => this.sendCommand(command, values)} />
+        <Program programSource={ this.props.currentState.mixEffects[0].sources.program} inputs={this.props.currentState.settings.inputs} sendCommand={(command: string, values: any) => this.sendCommand(command, values)} />
 
-        <Transition currentState={this.props.currentState} sendCommand={(command: string, values: any) => this.sendCommand(command, values)} />
-        <Preview currentState={this.props.currentState} sendCommand={(command: string, values: any) => this.sendCommand(command, values)} />
-        <Next currentState={this.props.currentState} sendCommand={(command: string, values: any) => this.sendCommand(command, values)} />
-        <DSK currentState={this.props.currentState} sendCommand={(command: string, values: any) => this.sendCommand(command, values)} />
-        <FTB currentState={this.props.currentState} sendCommand={(command: string, values: any) => this.sendCommand(command, values)} />
+        <Transition videoMode={this.props.currentState.settings.videoMode} transition={this.props.currentState.mixEffects[0].transition} sendCommand={(command: string, values: any) => this.sendCommand(command, values)} />
+        <Preview previewSource={this.props.currentState.mixEffects[0].sources.preview } inputs={this.props.currentState.settings.inputs} sendCommand={(command: string, values: any) => this.sendCommand(command, values)} />
+        <Next selection={this.props.currentState.mixEffects[0].transition.properties.selection} keyers={this.props.currentState.mixEffects[0].keyers} sendCommand={(command: string, values: any) => this.sendCommand(command, values)} />
+        <DSK videoMode={this.props.currentState.settings.videoMode} downstreamKeyers={this.props.currentState.downstreamKeyers} sendCommand={(command: string, values: any) => this.sendCommand(command, values)} />
+        <FTB fadeToBlack={this.props.currentState.mixEffects[0].fadeToBlack} videoMode={this.props.currentState.settings.videoMode} sendCommand={(command: string, values: any) => this.sendCommand(command, values)} />
 
 
       </div >
@@ -297,23 +264,22 @@ class ControlPageInner extends React.Component<ControlPageInnerProps, ControlPag
 
 interface ProgramProps {
   sendCommand: any
-  currentState: any
+  inputs: any
+  programSource:number
 }
 
 
-function Program(props: ProgramProps) {
-  const inputs = props.currentState.settings.inputs
-  var myKeys = Object.keys(inputs).filter(i => videoIds[i] < 50 && videoIds[i] > 0)
-  const programSource = props.currentState.mixEffects[0].sources.program
+const Program =React.memo((props: ProgramProps) =>{
+  var myKeys = Object.keys(props.inputs).filter(i => videoIds[i] < 50 && videoIds[i] > 0)
   var programButtons = myKeys.map(item =>
-    <AtemButtonRed name={inputs[(item)].properties.shortName} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.ProgramInputSetCommand", { Index: 0, Source: videoIds[item] })} active={item.includes(programSource)}></AtemButtonRed>
+    <AtemButtonRed key={videoIds[item]} name={props.inputs[(item)].properties.shortName} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.ProgramInputSetCommand", { Index: 0, Source: videoIds[item] })} active={item.includes(props.programSource.toString())}></AtemButtonRed>
   )
 
-  var blkProgram = <AtemButtonRed name={"Blk"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.ProgramInputSetCommand", { Index: 0, Source: 0 })} active={programSource === 0}></AtemButtonRed>
-  var barsProgram = <AtemButtonRed name={"Bars"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.ProgramInputSetCommand", { Index: 0, Source: 1000 })} active={programSource === 1000}></AtemButtonRed>
-  var col1Program = <AtemButtonRed name={"Col1"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.ProgramInputSetCommand", { Index: 0, Source: 2001 })} active={programSource === 2001}></AtemButtonRed>
-  var mp1Program = <AtemButtonRed name={"MP1"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.ProgramInputSetCommand", { Index: 0, Source: 3010 })} active={programSource === 3010}></AtemButtonRed>
-  var mp2Program = <AtemButtonRed name={"MP2"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.ProgramInputSetCommand", { Index: 0, Source: 3020 })} active={programSource === 3020}></AtemButtonRed>
+  var blkProgram = <AtemButtonRed name={"Blk"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.ProgramInputSetCommand", { Index: 0, Source: 0 })} active={props.programSource === 0}></AtemButtonRed>
+  var barsProgram = <AtemButtonRed name={"Bars"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.ProgramInputSetCommand", { Index: 0, Source: 1000 })} active={props.programSource === 1000}></AtemButtonRed>
+  var col1Program = <AtemButtonRed name={"Col1"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.ProgramInputSetCommand", { Index: 0, Source: 2001 })} active={props.programSource === 2001}></AtemButtonRed>
+  var mp1Program = <AtemButtonRed name={"MP1"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.ProgramInputSetCommand", { Index: 0, Source: 3010 })} active={props.programSource === 3010}></AtemButtonRed>
+  var mp2Program = <AtemButtonRed name={"MP2"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.ProgramInputSetCommand", { Index: 0, Source: 3020 })} active={props.programSource === 3020}></AtemButtonRed>
 
   const isPhone = useMediaQuery({ query: '(min-width: 600px)' })
 
@@ -356,21 +322,26 @@ function Program(props: ProgramProps) {
         </div>
       </div>)
   }
+})
+
+
+interface PreviewProps {
+  sendCommand: any
+  inputs: any
+  previewSource:number
 }
 
-function Preview(props: ProgramProps) {
-  const inputs = props.currentState.settings.inputs
-  var myKeys = Object.keys(inputs).filter(i => videoIds[i] < 50 && videoIds[i] > 0)
-  const previewSource = props.currentState.mixEffects[0].sources.preview
+const Preview =React.memo((props: PreviewProps) =>{
+  var myKeys = Object.keys(props.inputs).filter(i => videoIds[i] < 50 && videoIds[i] > 0)
   var previewButtons = myKeys.map(item =>
-    <AtemButtonGreen name={inputs[(item)].properties.shortName} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.PreviewInputSetCommand", { Index: 0, Source: videoIds[item] })} active={item.includes(previewSource)} />
+    <AtemButtonGreen key={videoIds[item]} name={props.inputs[(item)].properties.shortName} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.PreviewInputSetCommand", { Index: 0, Source: videoIds[item] })} active={item.includes(props.previewSource.toString())} />
   )
 
-  var blk = <AtemButtonGreen name={"Blk"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.PreviewInputSetCommand", { Index: 0, Source: 0 })} active={previewSource === 0} />
-  var bars = <AtemButtonGreen name={"Bars"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.PreviewInputSetCommand", { Index: 0, Source: 1000 })} active={previewSource === 1000} />
-  var col1 = <AtemButtonGreen name={"Col1"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.PreviewInputSetCommand", { Index: 0, Source: 2001 })} active={previewSource === 2001} />
-  var mp1 = <AtemButtonGreen name={"MP1"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.PreviewInputSetCommand", { Index: 0, Source: 3010 })} active={previewSource === 3010} />
-  var mp2 = <AtemButtonGreen name={"MP2"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.PreviewInputSetCommand", { Index: 0, Source: 3020 })} active={previewSource === 3020} />
+  var blk = <AtemButtonGreen name={"Blk"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.PreviewInputSetCommand", { Index: 0, Source: 0 })} active={props.previewSource === 0} />
+  var bars = <AtemButtonGreen name={"Bars"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.PreviewInputSetCommand", { Index: 0, Source: 1000 })} active={props.previewSource === 1000} />
+  var col1 = <AtemButtonGreen name={"Col1"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.PreviewInputSetCommand", { Index: 0, Source: 2001 })} active={props.previewSource === 2001} />
+  var mp1 = <AtemButtonGreen name={"MP1"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.PreviewInputSetCommand", { Index: 0, Source: 3010 })} active={props.previewSource === 3010} />
+  var mp2 = <AtemButtonGreen name={"MP2"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.PreviewInputSetCommand", { Index: 0, Source: 3020 })} active={props.previewSource === 3020} />
 
   const isPhone = useMediaQuery({ query: '(min-width: 600px)' })
 
@@ -414,11 +385,20 @@ function Preview(props: ProgramProps) {
         </div>
       </div>)
   }
+})
+
+
+
+interface TransitionProps {
+  sendCommand: any
+  transition: any
+  videoMode:number
 }
 
-function Transition(props: ProgramProps) {
+
+const Transition =React.memo((props: TransitionProps) =>{
   var styleName = ["Mix", "Dip", "Wipe", "DVE"]
-  var style = props.currentState.mixEffects[0].transition.properties.style
+  var style = props.transition.properties.style
   return (
     <div className="box" id="Transition">
       <div className="box-title">Transition Style</div>
@@ -429,64 +409,71 @@ function Transition(props: ProgramProps) {
         <AtemButtonYellow callback={(() => props.sendCommand("LibAtem.Commands.MixEffects.Transition.TransitionPropertiesSetCommand", { Index: 0, Mask: 1, NextStyle: 4 }))} active={style === 4} name={"STING"}></AtemButtonYellow>
         <AtemButtonYellow callback={(() => props.sendCommand("LibAtem.Commands.MixEffects.Transition.TransitionPropertiesSetCommand", { Index: 0, Mask: 1, NextStyle: 3 }))} active={style === 3} name={"DVE"}></AtemButtonYellow>
 
-        <AtemButtonRed className={"atem-button-text prev-trans"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.Transition.TransitionPreviewSetCommand", { Index: 0, PreviewTransition: !props.currentState.mixEffects[0].transition.properties.preview })} active={props.currentState.mixEffects[0].transition.properties.preview} name={"PREV TRANS"}></AtemButtonRed>
+        <AtemButtonRed className={"atem-button-text prev-trans"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.Transition.TransitionPreviewSetCommand", { Index: 0, PreviewTransition: !props.transition.properties.preview })} active={props.transition.properties.preview} name={"PREV TRANS"}></AtemButtonRed>
 
-        {/* {prevTrans} */}
         <div></div>
-        {/* <div onMouseDown={() => this.Cut()} className="atem-button button-grey ">CUT</div> */}
-        {/* {auto} */}
+
         <AtemButtonRed callback={() => props.sendCommand("LibAtem.Commands.MixEffects.MixEffectCutCommand", { Index: 0 })} active={false} name={"CUT"}></AtemButtonRed>
 
-        <AtemButtonRed callback={() => props.sendCommand("LibAtem.Commands.MixEffects.MixEffectAutoCommand", { Index: 0 })} active={props.currentState.mixEffects[0].transition.position.inTransition} name={"AUTO"}></AtemButtonRed>
+        <AtemButtonRed callback={() => props.sendCommand("LibAtem.Commands.MixEffects.MixEffectAutoCommand", { Index: 0 })} active={props.transition.position.inTransition} name={"AUTO"}></AtemButtonRed>
 
-        <div className="rate"> Rate<RateInput disabled={style === 4} className={"rate-input"} callback={(e: string) => { props.sendCommand("LibAtem.Commands.MixEffects.Transition.Transition" + styleName[style] + "SetCommand", { Index: 0, Mask: 1, Rate: e }) }} value={props.currentState.mixEffects[0].transition.position.remainingFrames} videoMode={props.currentState.settings.videoMode} ></RateInput></div>
+        <div className="rate"> Rate<RateInput disabled={style === 4} className={"rate-input"} callback={(e: string) => { props.sendCommand("LibAtem.Commands.MixEffects.Transition.Transition" + styleName[style] + "SetCommand", { Index: 0, Mask: 1, Rate: e }) }} value={props.transition.position.remainingFrames} videoMode={props.videoMode} ></RateInput></div>
       </div>
     </div>)
+})
+
+
+interface FTBProps {
+  sendCommand: any
+  fadeToBlack: any
+  videoMode:number
 }
 
-function FTB(props: ProgramProps) {
 
+const FTB =React.memo((props: FTBProps) =>{
   return (
     <div className="box" id="FTB">
       <div className="box-title">Fade to Black</div>
       <div className="box-ftb">
-        <div className="rate"> Rate<RateInput className={"rate-input"} callback={(e: string) => { props.sendCommand("LibAtem.Commands.MixEffects.FadeToBlackRateSetCommand", { Index: 0, Rate: e }) }} value={props.currentState.mixEffects[0].fadeToBlack.status.remainingFrames} videoMode={props.currentState.settings.videoMode} ></RateInput></div>
-        <AtemButtonFTB key={"ftb_button"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.FadeToBlackAutoCommand", { Index: 0 })} name={"FTB"} inTransition={props.currentState.mixEffects[0].fadeToBlack.status.inTransition} isFullBlack={props.currentState.mixEffects[0].fadeToBlack.status.isFullyBlack}></AtemButtonFTB>
+        <div className="rate"> Rate<RateInput className={"rate-input"} callback={(e: string) => { props.sendCommand("LibAtem.Commands.MixEffects.FadeToBlackRateSetCommand", { Index: 0, Rate: e }) }} value={props.fadeToBlack.status.remainingFrames} videoMode={props.videoMode} ></RateInput></div>
+        <AtemButtonFTB key={"ftb_button"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.FadeToBlackAutoCommand", { Index: 0 })} name={"FTB"} inTransition={props.fadeToBlack.status.inTransition} isFullBlack={props.fadeToBlack.status.isFullyBlack}></AtemButtonFTB>
       </div>
     </div>
   )
+})
+
+interface NextProps {
+  sendCommand: any
+  keyers: any
+  selection:number
 }
-
-function Next(props: ProgramProps) {
-
+const Next =React.memo((props: NextProps) =>{
   function dec2bin(dec: number) {
     return (dec >>> 0).toString(2);
   }
 
-
   function setKey(id: number) {
-    var dec = dec2bin(props.currentState.mixEffects[0].transition.properties.selection).padStart(5, '0').split("").reverse();
+    var dec = dec2bin(props.selection).padStart(5, '0').split("").reverse();
     dec[id] = (dec[id] === "0" ? "1" : "0")
     return (parseInt(dec.reverse().join(""), 2))
   }
 
   var onAirs = [];
-  var keysState = ((props.currentState.mixEffects[0].transition.properties.selection >>> 0).toString(2)).split("").reverse().join(""); //get binary of state and reverse it for iterating 
+  var keysState = ((props.selection >>> 0).toString(2)).split("").reverse().join(""); //get binary of state and reverse it for iterating 
   var keys = [];
 
-  var selection = props.currentState.mixEffects[0].transition.properties.selection
+  var selection = props.selection
 
   keys.push(<AtemButtonYellow update={selection} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.Transition.TransitionPropertiesSetCommand", { Index: 0, Mask: 2, NextSelection: setKey(0) })} active={keysState[0] === "1"} name={"BKGD"}></AtemButtonYellow>)
 
-  for (var i = 0; i < props.currentState.mixEffects[0].keyers.length; i++) {
+  for (var i = 0; i < props.keyers.length; i++) {
     const x = i
-    onAirs.push(<AtemButtonOnAir name={"ON AIR"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.Key.MixEffectKeyOnAirSetCommand", { MixEffectIndex: 0, KeyerIndex: x, OnAir: !props.currentState.mixEffects[0].keyers[x].onAir })} active={props.currentState.mixEffects[0].keyers[x].onAir} />)
+    onAirs.push(<AtemButtonOnAir name={"ON AIR"} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.Key.MixEffectKeyOnAirSetCommand", { MixEffectIndex: 0, KeyerIndex: x, OnAir: !props.keyers[x].onAir })} active={props.keyers[x].onAir} />)
     keys.push(<AtemButtonYellow update={selection} callback={() => props.sendCommand("LibAtem.Commands.MixEffects.Transition.TransitionPropertiesSetCommand", { Index: 0, Mask: 2, NextSelection: setKey(x + 1) })} active={keysState[i + 1] === "1"} name={"KEY" + (i + 1)}></AtemButtonYellow>)
   }
 
-
   return (
-    <div style={{ gridTemplateColumns: "repeat(" + props.currentState.mixEffects[0].keyers.length + 1 + " 50px)" }} className="box" id="Next">
+    <div style={{ gridTemplateColumns: "repeat(" + props.keyers.length + 1 + " 50px)" }} className="box" id="Next">
       <div className="box-title">Next Transition</div>
       <div className="box-transition">
         <div></div>
@@ -494,20 +481,28 @@ function Next(props: ProgramProps) {
         {keys}
       </div>
     </div>)
+})
+
+interface DSKProps {
+  sendCommand: any
+  videoMode: number
+  downstreamKeyers:any
+
 }
 
-function DSK(props: ProgramProps) {
-  var dskCount = props.currentState.downstreamKeyers.length
+
+const DSK =React.memo((props: DSKProps) =>{
+  var dskCount = props.downstreamKeyers.length
   var tie = []
   var rate = []
   var onAir = []
   var auto = []
   for (var i = 0; i < dskCount; i++) {
     const x = i
-    tie.push(<AtemButtonYellow name={"Tie"} callback={() => props.sendCommand("LibAtem.Commands.DownstreamKey.DownstreamKeyTieSetCommand", { Index: x, Tie: !props.currentState.downstreamKeyers[x].properties.tie })} active={props.currentState.downstreamKeyers[x].properties.tie} />)
-    rate.push(<div className="rate"> Rate<RateInput className={"rate-input"} callback={(e: string) => { props.sendCommand("LibAtem.Commands.DownstreamKey.DownstreamKeyRateSetCommand", { Index: x, Rate: e }) }} value={props.currentState.downstreamKeyers[x].state.remainingFrames} videoMode={props.currentState.settings.videoMode} ></RateInput></div>)
-    onAir.push(<AtemButtonOnAir name={"ON AIR"} callback={() => props.sendCommand("LibAtem.Commands.DownstreamKey.DownstreamKeyOnAirSetCommand", { Index: x, OnAir: !props.currentState.downstreamKeyers[x].state.onAir })} active={props.currentState.downstreamKeyers[x].state.onAir} />)
-    auto.push(<AtemButtonRed name={"AUTO"} callback={() => props.sendCommand("LibAtem.Commands.DownstreamKey.DownstreamKeyAutoV8Command", { Index: x, IsTowardsOnAir: !props.currentState.downstreamKeyers[x].state.onAuto })} active={props.currentState.downstreamKeyers[x].state.isAuto} />)
+    tie.push(<AtemButtonYellow name={"Tie"} callback={() => props.sendCommand("LibAtem.Commands.DownstreamKey.DownstreamKeyTieSetCommand", { Index: x, Tie: !props.downstreamKeyers[x].properties.tie })} active={props.downstreamKeyers[x].properties.tie} />)
+    rate.push(<div className="rate"> Rate<RateInput className={"rate-input"} callback={(e: string) => { props.sendCommand("LibAtem.Commands.DownstreamKey.DownstreamKeyRateSetCommand", { Index: x, Rate: e }) }} value={props.downstreamKeyers[x].state.remainingFrames} videoMode={props.videoMode} ></RateInput></div>)
+    onAir.push(<AtemButtonOnAir name={"ON AIR"} callback={() => props.sendCommand("LibAtem.Commands.DownstreamKey.DownstreamKeyOnAirSetCommand", { Index: x, OnAir: !props.downstreamKeyers[x].state.onAir })} active={props.downstreamKeyers[x].state.onAir} />)
+    auto.push(<AtemButtonRed name={"AUTO"} callback={() => props.sendCommand("LibAtem.Commands.DownstreamKey.DownstreamKeyAutoV8Command", { Index: x, IsTowardsOnAir: !props.downstreamKeyers[x].state.onAuto })} active={props.downstreamKeyers[x].state.isAuto} />)
   }
 
   if (dskCount == 1) {
@@ -525,9 +520,7 @@ function DSK(props: ProgramProps) {
         </div> :
 
         <div className="box-title">DSK1</div>
-
       }
-
       <div className="box-dsk" style={{ gridTemplateColumns: style }}>
         {tie}
         {rate}
@@ -535,4 +528,4 @@ function DSK(props: ProgramProps) {
         {auto}
       </div>
     </div>)
-}
+})
