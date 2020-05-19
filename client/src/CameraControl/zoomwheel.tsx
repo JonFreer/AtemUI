@@ -1,4 +1,5 @@
 import React from "react";
+import { max } from "moment";
 
 interface FocusProps {
     callback: any
@@ -10,6 +11,7 @@ interface FocusState {
     active: boolean
     offset: number
     height:number
+
 
 }
 
@@ -23,7 +25,8 @@ export class ZoomWheel extends React.Component<FocusProps, FocusState> {
             distance: 0,
             offset: 0,
             active: false,
-            height:0
+            height:0,
+
         }
     }
 
@@ -47,17 +50,15 @@ export class ZoomWheel extends React.Component<FocusProps, FocusState> {
 
     handleDrag = (e: any) => {
         e.stopPropagation()
-        console.log(e.clientX)
-        this.props.callback(((e.clientY - this.state.startY) - this.state.distance) * 10)
+        var distance =(e.clientY - this.state.startY)/-(this.state.height/2)
+        this.props.callback(Math.min(2048,Math.max(-2048,Math.round((Math.pow((distance),3)+distance)*1024))))
         this.setState({ distance: (e.clientY - this.state.startY) })
-        
-
     };
 
     handleDragMobile = (e: any) => {
         e.stopPropagation()
-        
-        this.props.callback(((Math.round(e.touches.item(0).clientY) - this.state.startY) - this.state.distance) * 10)
+        var distance =(e.touches.item(0).clientY - this.state.startY)/-(this.state.height/2)
+        this.props.callback(Math.min(2048,Math.max(-2048,Math.round((Math.pow((distance),3)+distance)*1024))))
         this.setState({ distance: (Math.round(e.touches.item(0).clientY) - this.state.startY) })
 
     };
@@ -66,34 +67,45 @@ export class ZoomWheel extends React.Component<FocusProps, FocusState> {
         this.setState(
             {
                 active: false,
-                offset: this.state.offset + this.state.distance,
+                offset: 0,
                 distance: 0
             }
         )
+        this.props.callback(0)
         document.removeEventListener('mousemove', this.handleDrag)
         document.removeEventListener('mouseup', this.handleEnd)
     };
 
     render() {
         var notch = []
-        for (var i = 0; i < 35; i++) notch.push(<div className="cam-zoom-inner-inner"></div>)
-        notch.push(<div className="cam-zoom-circle-outer"><div className="cam-zoom-circle"></div></div>)
-        for (var i = 0; i < 35; i++) notch.push(<div className="cam-zoom-inner-inner"></div>)
-        return (<div
+        for (var i = 0; i < 80; i++) notch.push(<div className="cam-zoom-inner-inner"></div>)
+
+        return (
+            <div style={{overscrollBehavior: "contain", touchAction: "none"}} className="cam-zoom-outer"
+            onTouchStart={(e)=>this.setState({ active: true, startY: e.touches.item(0).clientY})}
+            onTouchMove={(e)=>this.handleDragMobile(e)}
+            onTouchEnd={(e)=>{this.setState({active: false, offset: 0, distance: 0});this.props.callback(0)}}>
+            <div className="cam-zoom-label-holder">
+                <div className="cam-zoom-label">T</div>
+                <div className="cam-zoom-label">W</div>
+            </div>
+            <div
             ref={el => {if (!el || this.state.height == el.getBoundingClientRect().height) return;
                 this.setState({height:el.getBoundingClientRect().height});
             }} 
             style={{ cursor: (this.state.active) ? "grabbing" : "inherit" }}
             className="cam-zoom-holder"
             onMouseDown={this.handleStart}
-            onTouchStart={(e)=>this.setState({ active: true, startY: e.touches.item(0).clientY})}
-            onTouchMove={(e)=>this.handleDragMobile(e)}
-            onTouchEnd={(e)=>this.setState({active: false, offset: this.state.offset + this.state.distance, distance: 0})}
+           
             >
-            <div style={{ top: -180+this.state.height/2 }} className={(this.state.active)?"cam-zoom-inner":"cam-zoom-inner scroll"}>
+            <div style={{ top: Math.max(-this.state.height/2,Math.min(this.state.height/2,(this.state.distance + this.state.offset)))-100}} className={(this.state.active)?"cam-zoom-inner":"cam-zoom-inner scroll"}>
                 {notch}
             </div>
+            <div style={{  top: Math.max(-this.state.height/2,Math.min(this.state.height/2,(this.state.distance + this.state.offset)))}} className={(this.state.active)?"cam-zoom-circle-holder":"cam-zoom-circle-holder scroll"}>
+                <div className="cam-zoom-circle-outer"><div className="cam-zoom-circle"></div></div>
+            </div>
             <div className="cam-zoom-slider">
+            </div>
             </div>
         </div>)
     }

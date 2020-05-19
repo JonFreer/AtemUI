@@ -8,6 +8,9 @@ import {  YRGBWheel } from './yrgbWheel'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { max } from 'moment'
 import { ZoomWheel } from './zoomwheel'
+import { ApertureSquare } from './apertureSquare'
+import Slider from 'react-rangeslider'
+import { CoarseSlider } from './coarseSlider'
 
 export class CameraPage extends React.Component {
   context!: React.ContextType<typeof DeviceManagerContext>
@@ -119,7 +122,7 @@ class CameraPageInner extends React.Component<CameraPageInnerProps, AudioPageInn
 
     return (
 
-      <Cam onAir={true} name={"Cam 1"} currentState={this.state.currentState.cameraControl.cams[1]} signalR={this.props.signalR} device={this.props.device}></Cam>
+      <Cam onAir={false} name={"Cam 1"} currentState={this.state.currentState.cameraControl.cams[1]} signalR={this.props.signalR} device={this.props.device}></Cam>
 
     )
   }
@@ -133,13 +136,15 @@ interface CamProps {
   currentState: any
   name: string
   onAir:boolean
+  
 }
 
-class Cam extends React.Component<CamProps,{page:number}> {
+class Cam extends React.Component<CamProps,{page:number,coarse:number}> {
   constructor(props: CamProps) {
     super(props)
     this.state = {
-      page:0
+      page:0,
+      coarse:9
     }
   }
 
@@ -272,20 +277,31 @@ class Cam extends React.Component<CamProps,{page:number}> {
           <div className="cam-aperture-label">CLOSE</div>
         </div>
         <div className="cam-mid-holder">
-          <div className="cam-mid">
-            <div className="cam-mid-x"></div>
-            <div className="cam-mid-y"></div>
-          </div>
-          <FocusWheel callback={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:0,LensFeature:0,Relative:true,Focus:e})}></FocusWheel>
+          <ApertureSquare 
+          coarse ={this.state.coarse}
+          onAir={this.props.onAir}
+          valueX={this.props.currentState.chip.lift.y}
+          value={this.props.currentState.lens.aperture} 
+          callback={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:0,LensFeature:2,Relative:false,Aperture:e})}
+          callbackX={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:8,ChipFeature:0,Relative:false,R:this.props.currentState.chip.lift.r,G:this.props.currentState.chip.lift.g,B:this.props.currentState.chip.lift.b,Y:e})}>
+
+          </ApertureSquare>
+          <FocusWheel  callback={(e:number)=>{this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:0,LensFeature:0,Relative:true,Focus:e})}}></FocusWheel>
         </div>
         
         <div className="cam-right-holder">
           <div className="cam-aperture-label">ZOOM</div>
-          <div className="cam-zoom-outer">
-          <div></div>
-          <ZoomWheel callback={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:0,LensFeature:0,Relative:true,Focus:e})}></ZoomWheel>
-          </div>
+        
+          <ZoomWheel callback={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:0,LensFeature:9,Relative:false,ZoomSpeed:e})}></ZoomWheel>
+          <div className="cam-aperture-label">COARSE</div>
+          <CoarseSlider
+          value={this.state.coarse}
+          callback={(e:number)=>{
+          this.setState({coarse:e})
+          // this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:0,LensFeature:2,Relative:false,Aperture:(this.props.currentState.lens.aperture)+((e/100)*13824)})
+          }}>
 
+          </CoarseSlider>
         </div>
             
         </div>
