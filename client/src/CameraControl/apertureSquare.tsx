@@ -103,25 +103,42 @@ export class ApertureSquare extends React.Component<FocusProps, FocusState> {
       }
 
     shouldComponentUpdate(nextProps:FocusProps){
-        if(this.props.coarse!== nextProps.coarse){
-
-            
-                const minY = 3072 + (1536*this.props.coarse)
+        if(nextProps.value!==this.props.value){
+            if(this.props.coarse!== nextProps.coarse){
+                const minY = 3072 + (1536*this.state.coarse)
                 const maxY = 18432
                 const newMinY = 3072 + (1536*nextProps.coarse)
                 const percentY = (this.props.value-minY)/(maxY-minY)
     
                 const value = Math.round((percentY*(maxY-newMinY))+newMinY)
-                console.log(value)
+                console.error("AA")
                 this.props.callback(value)
-            
-            
+                this.setState({coarse:nextProps.coarse})
+                return false
+            }else if(nextProps.coarse !== this.state.coarse){
+                console.log("CC",this.props.coarse)
+                this.setState({coarse:nextProps.coarse})
+                return false
+            }
+            return true
 
-
-            return false
         }
+
+        else if(this.props.coarse!== nextProps.coarse){
+
+                const minY = 3072 + (1536*this.state.coarse)
+                const maxY = 18432
+                const newMinY = 3072 + (1536*nextProps.coarse)
+                const percentY = (this.props.value-minY)/(maxY-minY)
+                const value = Math.round((percentY*(maxY-newMinY))+newMinY)
+                console.log("BB",this.props.coarse,this.state.coarse,nextProps.coarse)
+                this.props.callback(value)
+                // this.setState({coarse:nextProps.coarse})
+                return false
+        }
+
         
-        return nextProps.value!==this.props.value 
+        return false
     }
 
 
