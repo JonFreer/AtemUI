@@ -5,7 +5,6 @@ interface FocusProps {
     callback: any
 }
 interface FocusState {
-    focus: boolean
     startY: number
     distance: number
     active: boolean
@@ -20,7 +19,6 @@ export class ZoomWheel extends React.Component<FocusProps, FocusState> {
     constructor(props: FocusProps) {
         super(props)
         this.state = {
-            focus: false,
             startY: 0,
             distance: 0,
             offset: 0,
@@ -30,13 +28,9 @@ export class ZoomWheel extends React.Component<FocusProps, FocusState> {
         }
     }
 
-    // componentDidMount() {
-    //     this.setState({
-
-    //         height: this.container.offsetHeight,
-         
-    //     });
-    //   }
+    shouldComponentUpdate(nextProps:FocusProps,nextState:FocusState){
+        return nextState.active!== this.state.active || nextState.active
+    }
 
     handleStart = (e: any) => {
         document.addEventListener('mousemove', this.handleDrag)

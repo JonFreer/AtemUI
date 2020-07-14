@@ -17,6 +17,8 @@ interface FocusState {
     width:number
     left:number
     coarse:number
+    wait:boolean
+    resize:boolean
 
 
 }
@@ -31,7 +33,9 @@ export class ApertureSquare extends React.Component<FocusProps, FocusState> {
             top: 0,
             width:0,
             left:0,
-            coarse:this.props.coarse
+            coarse:this.props.coarse,
+            wait:false,
+            resize:false
         }
         
     }
@@ -50,13 +54,12 @@ export class ApertureSquare extends React.Component<FocusProps, FocusState> {
     handleDrag = (e: any) => {
         e.stopPropagation()
 
-        const minY = 3072 + (1536*this.props.coarse)
+        const minY = 3072 + (1536*this.state.coarse)
         const maxY = 18432
         let pixelY = e.clientY -25 - this.state.top 
         const percentY = pixelY/(this.state.height-50) 
         const value = Math.round((percentY*(maxY-minY))+minY)
         this.props.callback(this.clamp(value,minY,maxY))
-
         const minX = -819
         const maxX = 819
         let pixelX = e.clientX -25 - this.state.left 
@@ -69,7 +72,7 @@ export class ApertureSquare extends React.Component<FocusProps, FocusState> {
     handleDragMobile = (e: any) => {
         e.stopPropagation()
 
-        const minY = 3072 + (1536*this.props.coarse)
+        const minY = 3072 + (1536*this.state.coarse)
         const maxY = 18432
         let pixelY = e.touches.item(0).clientY -25 - this.state.top 
         const percentY = pixelY/(this.state.height-50) 
@@ -102,49 +105,36 @@ export class ApertureSquare extends React.Component<FocusProps, FocusState> {
         }
       }
 
-    shouldComponentUpdate(nextProps:FocusProps){
-        if(nextProps.value!==this.props.value){
-            if(this.props.coarse!== nextProps.coarse){
-                const minY = 3072 + (1536*this.state.coarse)
-                const maxY = 18432
-                const newMinY = 3072 + (1536*nextProps.coarse)
-                const percentY = (this.props.value-minY)/(maxY-minY)
-    
-                const value = Math.round((percentY*(maxY-newMinY))+newMinY)
-                console.error("AA")
-                this.props.callback(value)
-                this.setState({coarse:nextProps.coarse})
-                return false
-            }else if(nextProps.coarse !== this.state.coarse){
-                console.log("CC",this.props.coarse)
-                this.setState({coarse:nextProps.coarse})
-                return false
+    shouldComponentUpdate(nextProps:FocusProps , nextState: FocusState){
+        if(nextProps.value!==this.props.value){ //Only allows one update of coarse at a time 
+            if(this.state.wait){
+                this.setState({wait:false})
             }
             return true
-
         }
-
-        else if(this.props.coarse!== nextProps.coarse){
-
+        if(this.state.coarse!== nextProps.coarse){
+            if(!this.state.wait){
                 const minY = 3072 + (1536*this.state.coarse)
                 const maxY = 18432
                 const newMinY = 3072 + (1536*nextProps.coarse)
                 const percentY = (this.props.value-minY)/(maxY-minY)
                 const value = Math.round((percentY*(maxY-newMinY))+newMinY)
-                console.log("BB",this.props.coarse,this.state.coarse,nextProps.coarse)
                 this.props.callback(value)
-                // this.setState({coarse:nextProps.coarse})
+                this.setState({coarse:nextProps.coarse,wait:true})
                 return false
+            }
         }
-
-        
-        return false
+        var resize = this.state.resize
+        if(resize){
+            this.setState({resize:false})
+        }
+        return this.props.valueX !== nextProps.valueX || this.state.height !== nextState.height || this.state.top !== nextState.top || this.state.resize || this.state.active !== nextState.active
     }
 
 
       handleUpdate = () => {
         console.log(this.state.height)
-        this.setState({active:false}) //cause a rerender on resize
+        this.setState({resize:true}) //cause a rerender on resize
       };
 
 
@@ -155,7 +145,7 @@ export class ApertureSquare extends React.Component<FocusProps, FocusState> {
 
     render() {
         
-        const minY = 3072 + (1536*this.props.coarse)
+        const minY = 3072 + (1536*this.state.coarse)
         console.log(minY)
         // console.log(this.props.coarse,minY)
         const maxY = 18432

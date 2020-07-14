@@ -1,8 +1,8 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import './Cams.css'
 import { AtemDeviceInfo } from '../Devices/types'
 import { GetActiveDevice, DeviceManagerContext, GetDeviceId } from '../DeviceManager'
-import { faCircleNotch, faCaretRight, faCaretLeft } from '@fortawesome/free-solid-svg-icons'
+import { faCircleNotch, faCaretRight, faCaretLeft, faHamburger, faBars } from '@fortawesome/free-solid-svg-icons'
 import { FocusWheel } from './focuswheel'
 import {  YRGBWheel } from './yrgbWheel'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -11,42 +11,55 @@ import { ZoomWheel } from './zoomwheel'
 import { ApertureSquare } from './apertureSquare'
 import Slider from 'react-rangeslider'
 import { CoarseSlider } from './coarseSlider'
+import { CamMenu, ResetMenu } from './menu'
+import { MagicLabel } from './magicLabel'
+import { ColourWheel } from './colorwheel'
+import { Expanded } from './expanded'
+import { useMediaQuery } from 'react-responsive'
+import { stringify } from 'querystring'
 
-export class CameraPage extends React.Component {
-  context!: React.ContextType<typeof DeviceManagerContext>
+export const CameraPage=() => {
+  //context!: React.ContextType<typeof DeviceManagerContext>
+  const context = useContext(DeviceManagerContext)
+  //static contextType = DeviceManagerContext
 
-  static contextType = DeviceManagerContext
-
-  render() {
-    const device = GetActiveDevice(this.context)
+  //render() {
+    const device = GetActiveDevice(context)
+    const isTabletOrMobile = useMediaQuery({ maxWidth: 550 })
     return (
       <div className="page-camera">
 
         {device ? (
           <CameraPageInner
 
-            key={this.context.activeDeviceId || ''}
+            key={context.activeDeviceId || ''}
             device={device}
-            currentProfile={this.context.currentProfile}
+            currentProfile={context.currentProfile}
             // currentState={this.state.currentState}
-            signalR={this.context.signalR}
+            mobile={isTabletOrMobile}
+            signalR={context.signalR}
           />
         ) : (
             <p>No device selected</p>
           )}
       </div>
     )
-  }
+  //}
 }
 
 interface CameraPageInnerProps {
   device: AtemDeviceInfo
   signalR: signalR.HubConnection | undefined
   currentProfile: any
+  mobile:boolean
+  
 }
+
 interface AudioPageInnerState {
   hasConnected: boolean
   currentState: any
+  expanded:number
+  mobileCam:number
 }
 
 
@@ -57,6 +70,8 @@ class CameraPageInner extends React.Component<CameraPageInnerProps, AudioPageInn
     this.state = {
       hasConnected: props.device.connected,
       currentState: null,
+      expanded:0,
+      mobileCam:1
     }
 
     if (props.device.connected) {
@@ -120,11 +135,96 @@ class CameraPageInner extends React.Component<CameraPageInnerProps, AudioPageInn
       return (<p>Waiting for Profile</p>)
     }
 
-    return (
+    if(this.state.expanded!=0 && !this.props.mobile){
+      return(
+      <div className="cam-holder-holder open">
+      <Cam onAir={this.state.currentState.mixEffects[0].sources.program==this.state.expanded}
+         name={this.state.currentState.settings.inputs["input"+(this.state.expanded)].properties.shortName} 
+        currentState={this.state.currentState.cameraControl.cams[this.state.expanded]}
+        signalR={this.props.signalR}
+        device={this.props.device}
+        mobile={this.props.mobile}
+        input={this.state.expanded}
+        expanded={this.state.expanded!=0}
+        expandedCallback={(e:number)=>(this.state.expanded!=e)?this.setState({expanded:e}):this.setState({expanded:0})}>
 
-      <Cam onAir={false} name={"Cam 1"} currentState={this.state.currentState.cameraControl.cams[1]} signalR={this.props.signalR} device={this.props.device}></Cam>
+        </Cam>
+      <Expanded
+      lift={this.state.currentState.cameraControl.cams[this.state.expanded].chip.lift}
+      gamma={this.state.currentState.cameraControl.cams[this.state.expanded].chip.gamma}
+      gain ={this.state.currentState.cameraControl.cams[this.state.expanded].chip.gain}
+      contrast={this.state.currentState.cameraControl.cams[this.state.expanded].chip.contrast}
+      hue={this.state.currentState.cameraControl.cams[this.state.expanded].chip.hue}
+      saturation={this.state.currentState.cameraControl.cams[this.state.expanded].chip.saturation}
+      lumMix={this.state.currentState.cameraControl.cams[this.state.expanded].chip.lumMix}
+      input={this.state.expanded}
+      sendCommand={(cmd:string,val:any)=>this.sendCommand(cmd,val)}
+      ></Expanded>
 
-    )
+      </div>)
+    }
+
+    if(this.props.mobile){
+
+      var topBar = []
+      for(var i = 0; i<Object.keys(this.state.currentState.cameraControl.cams).length; i++){
+        const x = i+1
+        topBar.push(
+        <div className={this.state.mobileCam != i+1?"cam-mobile-selecter":"cam-mobile-selecter active"}
+        onClick={()=>this.setState({mobileCam:x})}
+        >
+          {this.state.currentState.settings.inputs["input"+(i+1)].properties.shortName}
+      </div>
+      )
+      }
+
+      return(
+        <div className="cam-holder-holder mobile">
+        <div style={{gridTemplateColumns:"repeat("+ Object.keys(this.state.currentState.cameraControl.cams).length  +",1fr)"}} className="cam-mobile-selecter-holder">
+          {topBar}
+        </div>
+        <Cam onAir={this.state.currentState.mixEffects[0].sources.program==this.state.mobileCam}
+        name={this.state.currentState.settings.inputs["input"+(this.state.mobileCam)].properties.shortName} 
+        currentState={this.state.currentState.cameraControl.cams[this.state.mobileCam]}
+        signalR={this.props.signalR}
+        device={this.props.device}
+        mobile={this.props.mobile}
+        expanded={this.state.expanded!=0}
+        input={this.state.mobileCam}
+        expandedCallback={(e:number)=>(this.state.expanded==0)?this.setState({expanded:e}):this.setState({expanded:0})}></Cam>
+        </div>
+      )
+    }
+
+
+    else{
+      var cams=[]
+      for(var i = 0; i<Object.keys(this.state.currentState.cameraControl.cams).length; i++){
+          cams.push( 
+            
+          <Cam onAir={this.state.currentState.mixEffects[0].sources.program==i+1}
+           name={this.state.currentState.settings.inputs["input"+(i+1)].properties.shortName} 
+          currentState={this.state.currentState.cameraControl.cams[i+1]}
+          signalR={this.props.signalR}
+          device={this.props.device}
+          mobile={this.props.mobile}
+          input={i+1}
+          expanded={this.state.expanded==i+1}
+          expandedCallback={(e:number)=>(this.state.expanded!=e)?this.setState({expanded:e}):this.setState({expanded:0})}></Cam>
+          )
+      }
+      return(<div className="cam-holder-holder">
+        {cams}
+
+
+
+      </div>)
+    }
+
+    
+
+
+    
   }
 }
 
@@ -136,6 +236,11 @@ interface CamProps {
   currentState: any
   name: string
   onAir:boolean
+  mobile:boolean
+  expandedCallback:any
+  expanded:boolean
+  input:number
+  
   
 }
 
@@ -144,7 +249,7 @@ class Cam extends React.Component<CamProps,{page:number,coarse:number}> {
     super(props)
     this.state = {
       page:0,
-      coarse:9
+      coarse:0, //0 to 9
     }
   }
 
@@ -167,6 +272,11 @@ class Cam extends React.Component<CamProps,{page:number,coarse:number}> {
 
   }
 
+  shouldComponentUpdate(nextProps: CamProps, nextState:{page:number,coarse:number}){
+    return JSON.stringify(this.props) != JSON.stringify(nextProps) || this.state.page!= nextState.page || this.state.coarse != nextState.coarse
+
+  }
+
   
   render() {
 
@@ -174,15 +284,18 @@ class Cam extends React.Component<CamProps,{page:number,coarse:number}> {
     const pageScale = [4096,8192,2048][this.state.page]
     const pageMax= [4096,8192,32767][this.state.page]
     const pageId = ["lift","gamma","gain"][this.state.page]
-    const shutter =[41667,40000,33333,20000,16667,13333,11111,10000,8333,6667,5556,4000,2778,2000,1379,1000,690,500]
-    // const shutter = [24,25,30,50,60,75,90,100,120,150,180,250,360,500,725,1000,1450,2000]
 
 
-    var apertureOffCount = Math.round((this.props.currentState.lens.aperture - 3072)/640)
+    //aperture lights
+    var apertureOffCount = Math.round((this.props.currentState.lens.iris - 3072)/640)
     var aperture = []
     for (var i=0; i < apertureOffCount; i++) aperture.push(<div className="cam-aperture-item"></div>)
     for (var i=0; i < 24 - apertureOffCount; i++) aperture.push(<div className="cam-aperture-item on"></div>)
-    return (<div className="cam-holder">
+    
+
+    return (
+    
+    <div className="cam-holder">
      <Heading onAir={this.props.onAir} name={this.props.name}/>
 
      <div style={{height: "100%", margin:"0px 10px"}} className="ss-button-holder">
@@ -198,20 +311,35 @@ class Cam extends React.Component<CamProps,{page:number,coarse:number}> {
                 </div>
 
       <div className="cam-circle-holder">
-          <ColourWheel rgby={this.props.currentState.chip.lift}/>
-          
+          <ColourWheel
+          callback={(r:number,g:number,b:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:this.props.input,AdjustmentDomain:8,ChipFeature:this.state.page,Relative:false,R:r,G:g,B:b,Y:this.props.currentState.chip.lift.y})}
+          rgby={this.props.currentState.chip[pageId]}
+          outerRadius = {150}
+          innerRadius = {135}
+          blackWidth={10}
+          /> 
+
+        <div className="cam-circle-button expand" onClick={()=>this.props.expandedCallback(this.props.input)}> 
+                <svg style={{position:"absolute",top:"2px",left:"2px" }} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={this.props.expanded?"orange":"#5e5e5e"} width="24px" height="24px"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"/></svg>
+            </div>
       </div>
       <YRGBWheel minMax={pageMax} values={{r:this.props.currentState.chip[pageId].r,g:this.props.currentState.chip[pageId].g,b:this.props.currentState.chip[pageId].b,y:this.props.currentState.chip[pageId].y}}
-       callback={(r:number,g:number,b:number,y:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:8,ChipFeature:this.state.page,Relative:false,R:r,G:g,B:b,Y:y})}/>
+       callback={(r:number,g:number,b:number,y:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:this.props.input,AdjustmentDomain:8,ChipFeature:this.state.page,Relative:false,R:r,G:g,B:b,Y:y})}/>
 
   
 
       <div className="cam-value-bar">
-        <div></div>
+        <CamMenu 
+        detail={this.props.currentState.camera.detail}
+        colorBar={this.props.currentState.colorBars}
+        colorBarCallback={()=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand", {Input:this.props.input,AdjustmentDomain:4,Relative:false, ColorBars: !this.props.currentState.colorBars})}
+        detailCallback={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand", {Input:this.props.input,AdjustmentDomain:1,CameraFeature:8,Relative:false, Detail:e})}
+          />
+        
         <div className="cam-value">
           <MagicLabel step={5} max={pageMax} min= {-pageMax}
           callback={(e: number) => { this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",
-          {Input:1,AdjustmentDomain:8,ChipFeature:this.state.page,Relative:false,R:this.props.currentState.chip[pageId].r,G:this.props.currentState.chip[pageId].g,B:this.props.currentState.chip[pageId].b,Y:e})}} 
+          {Input:this.props.input,AdjustmentDomain:8,ChipFeature:this.state.page,Relative:false,R:this.props.currentState.chip[pageId].r,G:this.props.currentState.chip[pageId].g,B:this.props.currentState.chip[pageId].b,Y:e})}} 
           format={(e:any)=>(e/pageScale).toFixed(2)}
           value={this.props.currentState.chip[pageId].y}/>
     
@@ -221,7 +349,7 @@ class Cam extends React.Component<CamProps,{page:number,coarse:number}> {
         <div className="cam-value">
         <MagicLabel step={5} max={pageMax} min= {-pageMax}
           callback={(e: number) => { this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",
-          {Input:1,AdjustmentDomain:8,ChipFeature:this.state.page,Relative:false,R:e,G:this.props.currentState.chip[pageId].g,B:this.props.currentState.chip[pageId].b,Y:this.props.currentState.chip[pageId].y})}} 
+          {Input:this.props.input,AdjustmentDomain:8,ChipFeature:this.state.page,Relative:false,R:e,G:this.props.currentState.chip[pageId].g,B:this.props.currentState.chip[pageId].b,Y:this.props.currentState.chip[pageId].y})}} 
           format={(e:any)=>(e/pageScale).toFixed(2)}
           value={this.props.currentState.chip[pageId].r}/>
           <div className="cam-value-colour-bar red"></div>
@@ -230,7 +358,7 @@ class Cam extends React.Component<CamProps,{page:number,coarse:number}> {
         <div className="cam-value">
         <MagicLabel step={5} max={pageMax} min= {-pageMax}
           callback={(e: number) => { this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",
-          {Input:1,AdjustmentDomain:8,ChipFeature:this.state.page,Relative:false,R:this.props.currentState.chip[pageId].r,G:e,B:this.props.currentState.chip[pageId].b,Y:this.props.currentState.chip[pageId].y})}} 
+          {Input:this.props.input,AdjustmentDomain:8,ChipFeature:this.state.page,Relative:false,R:this.props.currentState.chip[pageId].r,G:e,B:this.props.currentState.chip[pageId].b,Y:this.props.currentState.chip[pageId].y})}} 
           format={(e:any)=>(e/pageScale).toFixed(2)}
           value={this.props.currentState.chip[pageId].g}/>
           <div className="cam-value-colour-bar green"></div>
@@ -239,35 +367,43 @@ class Cam extends React.Component<CamProps,{page:number,coarse:number}> {
         <div className="cam-value">
         <MagicLabel step={5} max={pageMax} min= {-pageMax}
           callback={(e: number) => { this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",
-          {Input:1,AdjustmentDomain:8,ChipFeature:this.state.page,Relative:false,R:this.props.currentState.chip[pageId].r,G:this.props.currentState.chip[pageId].g,B:e,Y:this.props.currentState.chip[pageId].y})}} 
+          {Input:this.props.input,AdjustmentDomain:8,ChipFeature:this.state.page,Relative:false,R:this.props.currentState.chip[pageId].r,G:this.props.currentState.chip[pageId].g,B:e,Y:this.props.currentState.chip[pageId].y})}} 
           format={(e:any)=>(e/pageScale).toFixed(2)}
           value={this.props.currentState.chip[pageId].b}/>
           <div className="cam-value-colour-bar blue"></div>
         </div>
+
+        <ResetMenu 
+        callbackLift={()=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:this.props.input,AdjustmentDomain:8,ChipFeature:0,Relative:false,R:0,G:0,B:0,Y:0})}
+        callbackGamma={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand", {Input:this.props.input,AdjustmentDomain:8,ChipFeature:1,Relative:false,R:0,G:0,B:0,Y:0})}
+        callbackGain={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand", {Input:this.props.input,AdjustmentDomain:8,ChipFeature:2,Relative:false,R:2048,G:2048,B:2048,Y:2048})}
+          />
+
       </div>
 
 
 
 
-      <div className="cam-black-bar" >
-        <div className="cam-black-item">
-          <div className="cam-black-arrow left" onClick={()=> this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:1,CameraFeature:13,Relative:0,CameraGain:Math.max(-12,this.props.currentState.camera.gain-6)})} ><FontAwesomeIcon icon={faCaretLeft} /></div>
-          <div style={{width:"44px"}} className="cam-black-text">{this.props.currentState.camera.gain+"db"}</div>
-          <div className="cam-black-arrow" onClick={()=> this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:1,CameraFeature:13,Relative:0,CameraGain:Math.min(24,this.props.currentState.camera.gain+6)})}><FontAwesomeIcon icon={faCaretRight} /></div>
-        </div>
+      <CamBarBlack
+      input={this.props.input}
+      sendCommand={(command:string, val:any)=>this.sendCommand(command,val)}
+      shutter={this.props.currentState.camera.shutter}
+      gain={this.props.currentState.camera.gain}
+      whiteBalance={this.props.currentState.camera.whiteBalance}
+      
+      ></CamBarBlack>
 
-        <div className="cam-black-item">
-          <div className="cam-black-arrow left"  onClick={()=> this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:1,CameraFeature:5,Relative:0,Shutter:shutter[Math.abs(-1+shutter.length+shutter.indexOf(this.props.currentState.camera.shutter))%shutter.length]})}><FontAwesomeIcon icon={faCaretLeft} /></div>
-          <div className="cam-black-text">{"1/"+Math.round((1/this.props.currentState.camera.shutter)*1000000)}</div>
-          <div className="cam-black-arrow" onClick={()=> this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:1,CameraFeature:5,Relative:0,Shutter:shutter[Math.abs(1+shutter.length+shutter.indexOf(this.props.currentState.camera.shutter))%shutter.length]})}><FontAwesomeIcon icon={faCaretRight} /></div>
-        </div>
 
-        <div className="cam-black-item">
-          <div className="cam-black-arrow left" onClick={()=> this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:1,CameraFeature:2,Relative:false,WhiteBalance:Math.max(2500,this.props.currentState.camera.whiteBalance-50)})}><FontAwesomeIcon icon={faCaretLeft}/></div>
-          <div style={{width:"59px"}} className="cam-black-text">{this.props.currentState.camera.whiteBalance+"K"}</div>
-          <div  className="cam-black-arrow" onClick={()=> this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:1,CameraFeature:2,Relative:false,WhiteBalance:Math.min(10000,this.props.currentState.camera.whiteBalance+50)})}><FontAwesomeIcon icon={faCaretRight} /></div>
-        </div>
-      </div>
+      {this.props.expanded && this.props.mobile?<ChipSliders 
+      input={this.props.input}
+      sendCommand={(command:string, val:any)=>this.sendCommand(command,val)}
+      hue={this.props.currentState.chip.hue}
+      saturation={this.props.currentState.chip.saturation}
+      lumMix = {this.props.currentState.chip.lumMix}
+      contrast={this.props.currentState.chip.contrast}
+      ></ChipSliders>:null}
+
+
       <div className="cam-bottom-holder">
         <div className="cam-aperture">
           <div className="cam-aperture-label">OPEN</div>
@@ -281,18 +417,18 @@ class Cam extends React.Component<CamProps,{page:number,coarse:number}> {
           coarse ={this.state.coarse}
           onAir={this.props.onAir}
           valueX={this.props.currentState.chip.lift.y}
-          value={this.props.currentState.lens.aperture} 
-          callback={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:0,LensFeature:2,Relative:false,Aperture:e})}
-          callbackX={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:8,ChipFeature:0,Relative:false,R:this.props.currentState.chip.lift.r,G:this.props.currentState.chip.lift.g,B:this.props.currentState.chip.lift.b,Y:e})}>
+          value={this.props.currentState.lens.iris} 
+          callback={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:this.props.input,AdjustmentDomain:0,LensFeature:2,Relative:false,Iris:e})}
+          callbackX={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:this.props.input,AdjustmentDomain:8,ChipFeature:0,Relative:false,R:this.props.currentState.chip.lift.r,G:this.props.currentState.chip.lift.g,B:this.props.currentState.chip.lift.b,Y:e})}>
 
           </ApertureSquare>
-          <FocusWheel  callback={(e:number)=>{this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:0,LensFeature:0,Relative:true,Focus:e})}}></FocusWheel>
+          <FocusWheel  callback={(e:number)=>{this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:this.props.input,AdjustmentDomain:0,LensFeature:0,Relative:true,Focus:e})}}></FocusWheel>
         </div>
         
         <div className="cam-right-holder">
           <div className="cam-aperture-label">ZOOM</div>
         
-          <ZoomWheel callback={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:1,AdjustmentDomain:0,LensFeature:9,Relative:false,ZoomSpeed:e})}></ZoomWheel>
+          <ZoomWheel callback={(e:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:this.props.input,AdjustmentDomain:0,LensFeature:9,Relative:false,ZoomSpeed:e})}></ZoomWheel>
           <div className="cam-aperture-label">COARSE</div>
           <CoarseSlider
           value={this.state.coarse}
@@ -302,12 +438,24 @@ class Cam extends React.Component<CamProps,{page:number,coarse:number}> {
           }}>
 
           </CoarseSlider>
+          <div className="cam-circle-button" onClick={()=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:this.props.input,AdjustmentDomain:0,LensFeature:1})}> 
+            <svg height="100%" width="100%" viewBox="0 0 50 50">
+                <circle cx="25" cy="25" r="17" strokeWidth="2" stroke="#5e5e5e" fill="none"></circle>
+                <rect x="23" width="4" y="7" height="7" fill="#5e5e5e"></rect>
+                <rect x="23" width="4" y="35" height="7" fill="#5e5e5e"></rect>
+                <rect x="7" width="7" y="23" height="4" fill="#5e5e5e"></rect>
+                <rect x="35" width="7" y="23" height="4" fill="#5e5e5e"></rect>
+            </svg> 
+            </div>
         </div>
             
         </div>
-    </div>)
+        </div>
+
+    )
   }
 }
+
 
 function Heading(props:{onAir:boolean,name:string}){
   if(!props.onAir){
@@ -326,192 +474,90 @@ function Heading(props:{onAir:boolean,name:string}){
 }
 
 
-class ColourWheel extends React.Component<{rgby:any}> {
- 
-shouldComponentUpdate(){
-  return false
-}
-
-polarToCartesian(centerX:number, centerY:number, radius:number, angleInDegrees:number) {
-    const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
-
-    return {
-        x: centerX + radius * Math.cos(angleInRadians),
-        y: centerY + radius * Math.sin(angleInRadians)
-    };
-}
-
-describeArc(x:number, y:number, radius:number, startAngle:number, endAngle:number) {
-    const start = this.polarToCartesian(x, y, radius, endAngle);
-    const end = this.polarToCartesian(x, y, radius, startAngle);
-
-    const arcSweep = endAngle - startAngle <= 180 ? '0' : '1';
-
-    const d = [
-        'M', start.x, start.y,
-        'A', radius, radius, 0, arcSweep, 0, end.x, end.y,
-        'L', x, y,
-        'L', start.x, start.y
-    ].join(' ');
-
-    return d;
-}
-
-generateConicGradiant(radius:number, resolution:number) {
-    var paths = []
-    for (var i = 0; i < 360 * resolution; i++) {
-        const path = <path fill={'hsl(' + (-(i / resolution)-30) + ', 40%, 50%)'} d={this.describeArc(
-          radius,
-          radius,
-          radius-10,
-          i / resolution,
-          (i + 2) / resolution
-      )}>
-
-      </path>
-        paths.push(path);
-    } 
-    return paths
-}
-
-distance(dot1:any, dot2:any) {
-  var x1 = dot1[0],
-      y1 = dot1[1],
-      x2 = dot2[0],
-      y2 = dot2[1];
-  return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
-}
-
-limit(x:any, y:any) {
-  var dist = this.distance([x, y], [0,0]);
-  if (dist <= 125) {
-      return {x: x, y: y};
-  } 
-  else {
-      x = x - 0;
-      y = y - 0;
-      var radians = Math.atan2(y, x)
-         return {
-             x: Math.cos(radians) * 125 + 0,
-             y: Math.sin(radians) * 125 + 0
-         }
-      } 
-  }
+const areEqual = (prevProps:{input:number,sendCommand:any,whiteBalance:number,shutter:number,gain:number}, nextProps:{input:number,sendCommand:any,whiteBalance:number,shutter:number,gain:number}) => JSON.stringify(prevProps)==JSON.stringify(nextProps);
 
 
-  render(){
-    const b = {x: 122.5 , y: 21.25}
-    const g = {x: -80 , y: 96.25}
-    const r ={x: -42.5 , y: -117.5}
-    var cy = (this.props.rgby.b/4096*b.y) + (this.props.rgby.g/4096*g.y) + (this.props.rgby.r/4096*r.y)
-    var cx = (this.props.rgby.b/4096*b.x) + (this.props.rgby.g/4096*g.x) + (this.props.rgby.r/4096*r.x)
-    var coords = this.limit(cx,cy)
-    const resolution = 1;
-    const outerRadius = 150;
-    const innerRadius = 135;
-    return(<svg  height="100%" width="100%" viewBox="0 0 300 300" version="1.1" id="color-wheel">
-    <circle fill="#181818" cx={outerRadius} cy={outerRadius} r={outerRadius}></circle>
-    {this.generateConicGradiant(outerRadius, resolution)}
-    <circle fill="#232323" cx={outerRadius} cy={outerRadius} r={innerRadius-10}></circle>
-    <line x1="150" x2="150" y1="25" y2="275" stroke="#303030" strokeWidth="1" ></line>
-    <line x1="25" x2="275" y1="150" y2="150" stroke="#303030" strokeWidth="1" stroke-width="1"></line>
-    <circle className="cam-shadow" cx={150+coords.x} cy={150+coords.y} r="10" fill="none" stroke="#505050" strokeWidth="3"></circle>
-  </svg>)
-  }
-}
+const CamBarBlack = React.memo( props =>{
+  const shutter =[41667,40000,33333,20000,16667,13333,11111,10000,8333,6667,5556,4000,2778,2000,1379,1000,690,500]
+  return(
+  <div className="cam-black-bar" >
+  <div className="cam-black-item">
+    <div className="cam-black-arrow left" onClick={()=> props.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:props.input,AdjustmentDomain:1,CameraFeature:13,Relative:0,CameraGain:Math.max(-12,props.gain-6)})} ><FontAwesomeIcon icon={faCaretLeft} /></div>
+    <div style={{width:"44px"}} className="cam-black-text">{props.gain+"db"}</div>
+    <div className="cam-black-arrow" onClick={()=> props.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:props.input,AdjustmentDomain:1,CameraFeature:13,Relative:0,CameraGain:Math.min(24,props.gain+6)})}><FontAwesomeIcon icon={faCaretRight} /></div>
+  </div>
 
-interface MagicLabelProps {
-  callback: any
-  value: any
-  format:any
-  disabled?: boolean
-  step?: number
-  max:number
-  min:number
-  onChangeStart?: any
-  onChange?: any
-}
-interface MagicLabelState {
-  focus: boolean
-  tempValue: any
-  displayValue:any
-  disabled: boolean
-  xCoord: number
-  yCoord: number
-  active: boolean
+  <div className="cam-black-item">
+    <div className="cam-black-arrow left"  onClick={()=> props.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:props.input,AdjustmentDomain:1,CameraFeature:5,Relative:0,Shutter:shutter[Math.abs(-1+shutter.length+shutter.indexOf(props.shutter))%shutter.length]})}><FontAwesomeIcon icon={faCaretLeft} /></div>
+    <div className="cam-black-text">{"1/"+Math.round((1/props.shutter)*1000000)}</div>
+    <div className="cam-black-arrow" onClick={()=> props.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:props.input,AdjustmentDomain:1,CameraFeature:5,Relative:0,Shutter:shutter[Math.abs(1+shutter.length+shutter.indexOf(props.shutter))%shutter.length]})}><FontAwesomeIcon icon={faCaretRight} /></div>
+  </div>
 
-}
-
-export class MagicLabel extends React.Component<MagicLabelProps, MagicLabelState>{
-  constructor(props: MagicLabelProps) {
-      super(props)
-      this.state = {
-          focus: false,
-
-          tempValue: this.props.value,
-          displayValue :this.props.value,
-          disabled: this.props.disabled || true,
-          xCoord: 0,
-          yCoord: 0,
-          active: false
-      }
-  }
-
-  handleStart = (e: any) => {
-      const { onChangeStart } = this.props
-      document.addEventListener('mousemove', this.handleDrag)
-      document.addEventListener('mouseup', this.handleEnd)
-      this.setState(
-          {
-              displayValue:this.props.value,
-              tempValue: this.props.value,
-              active: true, xCoord: e.clientX, yCoord: e.clientY
-          },
-          () => {
-              onChangeStart && onChangeStart(e)
-          }
-      )
-  };
-
-  handleDrag = (e: any) => {
-      e.stopPropagation()
-      console.log(e.clientX)
-      
-      this.props.callback(Math.max(this.props.min,Math.min(this.state.tempValue + ((e.clientX - this.state.xCoord)),this.props.max)))
-      this.setState({displayValue:(Math.max(this.props.min,Math.min(this.state.tempValue + ((e.clientX - this.state.xCoord)),this.props.max))) })
-
-  };
+  <div className="cam-black-item">
+    <div className="cam-black-arrow left" onClick={()=> props.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:props.input,AdjustmentDomain:1,CameraFeature:2,Relative:false,WhiteBalance:Math.max(2500,props.whiteBalance-50)})}><FontAwesomeIcon icon={faCaretLeft}/></div>
+    <div style={{width:"59px"}} className="cam-black-text">{props.whiteBalance+"K"}</div>
+    <div  className="cam-black-arrow" onClick={()=> props.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:props.input,AdjustmentDomain:1,CameraFeature:2,Relative:false,WhiteBalance:Math.min(10000,props.whiteBalance+50)})}><FontAwesomeIcon icon={faCaretRight} /></div>
+  </div>
+</div>)
+},areEqual);
 
 
-  handleEnd = (e: any) => {
-      this.setState(
-          {
-              active: false
-          }
-      )
-      document.removeEventListener('mousemove', this.handleDrag)
-      document.removeEventListener('mouseup', this.handleEnd)
-  };
+function ChipSliders(props:{contrast:number,saturation:number,hue:number, lumMix:number,sendCommand:any ,input:number}){
 
-  render() {
-      var step = this.props.step || 1
-      return (<div style={{ overscrollBehavior: "contain", touchAction: "none" }}
-
-          onMouseDown={this.handleStart}
-          onTouchMove={(e) => {
-              console.log((this.state.yCoord - e.touches.item(0).clientY))
-              this.props.callback(this.props.value + ((this.state.yCoord - e.touches.item(0).clientY)))
-              this.setState({ xCoord: e.touches.item(0).clientX, yCoord: e.touches.item(0).clientY })
-          }}
-          onTouchStart={(e) => {
-              this.setState({ xCoord: e.touches.item(0).clientX, yCoord: e.touches.item(0).clientY })
-              console.log("touchStart")
-          }}
-
-          className={(!this.state.active) ? "cam-value-value" : "cam-value-value active"}>
-          {(this.state.active)?this.props.format(this.state.displayValue):this.props.format(this.props.value)}
-      </div>)
+  return(
+  <div className="cam-expanded-slider-holder-holder">
+  <div className="cam-slider">
+      <div className="cam-expanded-slider-label">Contrast</div>
+      <div className="cam-expanded-slider-value">{Math.round(props.contrast/40.96)}%</div>
+      <Slider 
+      value={props.contrast} 
+      max={4096} 
+      min={0}
+      step={1}
+      tooltip={false}
+      onChange={(e)=>props.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input: props.input, AdjustmentDomain:8, ChipFeature:4 , Contrast:e})}
+      ></Slider>
+  </div>
 
 
-  }
+  <div className="cam-slider">
+      <div className="cam-expanded-slider-label">Saturation</div>
+      <div className="cam-expanded-slider-value">{Math.round(props.saturation/40.96)}%</div>
+      <Slider 
+      value={props.saturation} 
+      max={4096} 
+      min={0}
+      step={1}
+      tooltip={false}
+      onChange={(e)=>props.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input: props.input, AdjustmentDomain:8, ChipFeature:6 , Saturation:e,Hue:props.hue})}
+      ></Slider>
+  </div>
+
+  <div className="cam-slider">
+      <div className="cam-expanded-slider-label">Hue</div>
+      <div className="cam-expanded-slider-value">{Math.round(((props.hue+2048)/4096)*360)}&deg;</div>
+      <Slider 
+      value={props.hue} 
+      max={2048} 
+      min={-2048}
+      step={1}
+      tooltip={false}
+      onChange={(e)=>props.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input: props.input, AdjustmentDomain:8, ChipFeature:6 , Hue:e, Saturation:props.saturation})}
+      ></Slider>
+  </div>
+
+  <div className="cam-slider">
+      <div className="cam-expanded-slider-label">RGB</div>
+      <div className="cam-expanded-slider-label" style={{right:"0px"}}>YRGB</div>
+      <Slider 
+      value={props.lumMix} 
+      max={2048} 
+      min={0}
+      step={1}
+      tooltip={false}
+      onChange={(e)=>props.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input: props.input, AdjustmentDomain:8, ChipFeature:5 , LumMix:e})}
+      ></Slider>
+  </div>
+
+</div>)
 }

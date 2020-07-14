@@ -30,6 +30,10 @@ export class YRGBWheel extends React.Component<FocusProps, FocusState> {
         }
     }
 
+    shouldComponentUpdate(nextProps:FocusProps,nextState:FocusState){
+        return nextState.active!== this.state.active || nextState.active
+    }
+
     handleStart = (e: any) => {
         document.addEventListener('mousemove', this.handleDrag)
         document.addEventListener('mouseup', this.handleEnd)

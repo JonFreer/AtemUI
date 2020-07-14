@@ -4,7 +4,6 @@ interface FocusProps {
     callback: any
 }
 interface FocusState {
-    focus: boolean
     startX: number
     distance: number
     active: boolean
@@ -17,12 +16,15 @@ export class FocusWheel extends React.Component<FocusProps, FocusState> {
     constructor(props: FocusProps) {
         super(props)
         this.state = {
-            focus: false,
             startX: 0,
             distance: 0,
             offset: 0,
             active: false
         }
+    }
+
+    shouldComponentUpdate(nextProps:FocusProps,nextState:FocusState){
+        return nextState.active!== this.state.active || nextState.active
     }
 
     handleStart = (e: any) => {

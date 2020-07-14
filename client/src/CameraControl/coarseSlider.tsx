@@ -11,6 +11,7 @@ interface FocusState {
     active: boolean
     height: number
     top: number
+    resize:boolean
 }
 
 export class CoarseSlider extends React.Component<FocusProps, FocusState> {
@@ -21,9 +22,17 @@ export class CoarseSlider extends React.Component<FocusProps, FocusState> {
             active: false,
             height: -1,
             top: 0,
+            resize:false
 
         }
         
+    }
+
+    shouldComponentUpdate(nextProps:FocusProps,nextState:FocusState){
+        if(nextState.resize){
+            this.setState({resize:false})
+        }
+        return nextProps.value != this.props.value || nextState.height != this.state.height || nextState.top != this.state.top || nextState.active != nextState.active || nextState.resize
     }
     
     handleStart = (e: any) => {
@@ -84,7 +93,7 @@ export class CoarseSlider extends React.Component<FocusProps, FocusState> {
 
       handleUpdate = () => {
         console.log(this.state.height)
-        this.setState({active:false}) //cause a rerender on resize
+        this.setState({resize:true}) //cause a rerender on resize
       };
 
 
