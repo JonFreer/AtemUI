@@ -60,6 +60,7 @@ export class ApertureSquare extends React.Component<FocusProps, FocusState> {
         const percentY = pixelY/(this.state.height-50) 
         const value = Math.round((percentY*(maxY-minY))+minY)
         this.props.callback(this.clamp(value,minY,maxY))
+
         const minX = -819
         const maxX = 819
         let pixelX = e.clientX -25 - this.state.left 
@@ -161,8 +162,9 @@ export class ApertureSquare extends React.Component<FocusProps, FocusState> {
         
         return (
             <div id="cam1" className="cam-mid" ref={el => { 
-                if (!el || this.state.height == el.getBoundingClientRect().height && this.state.top == el.getBoundingClientRect().top) return;
+                if (!el || this.state.height == el.getBoundingClientRect().height && this.state.top == el.getBoundingClientRect().top && this.state.width == el.getBoundingClientRect().width && this.state.left == el.getBoundingClientRect().left) return;
                 this.setState({ width:el.getBoundingClientRect().width, height: el.getBoundingClientRect().height,left:el.getBoundingClientRect().left, top: el.getBoundingClientRect().top });
+                console.log(el)
             }}
 
             >

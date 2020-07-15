@@ -34,7 +34,7 @@ export class Expanded extends React.Component<ExpandedProps> {
                         <div className="cam-circle-holder">
                             <ColourWheel
                                 callback={(r: number, g: number, b: number) => this.props.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand", { Input: this.props.input, AdjustmentDomain: 8, ChipFeature: 0, Relative: false, R: r, G: g, B: b, Y: this.props.lift.y })}
-                                rgby={this.props.lift} 
+                                rgby={{r:this.props.lift.r,g:this.props.lift.g,b:this.props.lift.b}}
                                 outerRadius = {150}
                                 innerRadius = {145}
                                 blackWidth={5}
@@ -52,7 +52,7 @@ export class Expanded extends React.Component<ExpandedProps> {
                         <div className="cam-circle-holder">
                             <ColourWheel
                                 callback={(r: number, g: number, b: number) => this.props.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand", { Input: this.props.input, AdjustmentDomain: 8, ChipFeature: 1, Relative: false, R: r, G: g, B: b, Y: this.props.lift.y })}
-                                rgby={this.props.gamma} 
+                                rgby={{r:this.props.gamma.r,g:this.props.gamma.g,b:this.props.gamma.b}}
                                 outerRadius = {150}
                                 innerRadius = {145}
                                 blackWidth={5}/>
@@ -70,7 +70,7 @@ export class Expanded extends React.Component<ExpandedProps> {
                         <div className="cam-circle-holder">
                             <ColourWheel
                                 callback={(r: number, g: number, b: number) => this.props.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand", { Input: this.props.input, AdjustmentDomain: 8, ChipFeature: 2, Relative: false, R: r, G: g, B: b, Y: this.props.lift.y })}
-                                rgby={this.props.gain}
+                                rgby={{r:this.props.gain.r,g:this.props.gain.g,b:this.props.gain.b}}
                                 outerRadius = {150}
                                 innerRadius = {145}
                                 blackWidth={5} />

@@ -24,7 +24,7 @@ export class ColourWheel extends React.Component<{ rgby: any, callback: any, out
         }
     }
     shouldComponentUpdate(nextProps: { rgby: any }) {
-        return true
+        //return true
         return this.props.rgby.r !== nextProps.rgby.r || this.props.rgby.g !== nextProps.rgby.g || this.props.rgby.b !== nextProps.rgby.b
     }
 

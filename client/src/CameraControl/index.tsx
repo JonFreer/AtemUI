@@ -19,11 +19,8 @@ import { useMediaQuery } from 'react-responsive'
 import { stringify } from 'querystring'
 
 export const CameraPage=() => {
-  //context!: React.ContextType<typeof DeviceManagerContext>
-  const context = useContext(DeviceManagerContext)
-  //static contextType = DeviceManagerContext
 
-  //render() {
+  const context = useContext(DeviceManagerContext)
     const device = GetActiveDevice(context)
     const isTabletOrMobile = useMediaQuery({ maxWidth: 550 })
     return (
@@ -44,7 +41,7 @@ export const CameraPage=() => {
           )}
       </div>
     )
-  //}
+
 }
 
 interface CameraPageInnerProps {
@@ -131,7 +128,7 @@ class CameraPageInner extends React.Component<CameraPageInnerProps, AudioPageInn
 
   render() {
 
-    if (this.props.currentProfile == null || this.state.currentState == undefined || this.state.currentState.cameraControl.cams[1] == undefined) {
+    if (this.props.currentProfile == null || this.state.currentState == undefined || this.state.currentState.cams[1] == undefined) {
       return (<p>Waiting for Profile</p>)
     }
 
@@ -140,7 +137,7 @@ class CameraPageInner extends React.Component<CameraPageInnerProps, AudioPageInn
       <div className="cam-holder-holder open">
       <Cam onAir={this.state.currentState.mixEffects[0].sources.program==this.state.expanded}
          name={this.state.currentState.settings.inputs["input"+(this.state.expanded)].properties.shortName} 
-        currentState={this.state.currentState.cameraControl.cams[this.state.expanded]}
+        currentState={this.state.currentState.cams[this.state.expanded]}
         signalR={this.props.signalR}
         device={this.props.device}
         mobile={this.props.mobile}
@@ -150,13 +147,13 @@ class CameraPageInner extends React.Component<CameraPageInnerProps, AudioPageInn
 
         </Cam>
       <Expanded
-      lift={this.state.currentState.cameraControl.cams[this.state.expanded].chip.lift}
-      gamma={this.state.currentState.cameraControl.cams[this.state.expanded].chip.gamma}
-      gain ={this.state.currentState.cameraControl.cams[this.state.expanded].chip.gain}
-      contrast={this.state.currentState.cameraControl.cams[this.state.expanded].chip.contrast}
-      hue={this.state.currentState.cameraControl.cams[this.state.expanded].chip.hue}
-      saturation={this.state.currentState.cameraControl.cams[this.state.expanded].chip.saturation}
-      lumMix={this.state.currentState.cameraControl.cams[this.state.expanded].chip.lumMix}
+      lift={this.state.currentState.cams[this.state.expanded].chip.lift}
+      gamma={this.state.currentState.cams[this.state.expanded].chip.gamma}
+      gain ={this.state.currentState.cams[this.state.expanded].chip.gain}
+      contrast={this.state.currentState.cams[this.state.expanded].chip.contrast}
+      hue={this.state.currentState.cams[this.state.expanded].chip.hue}
+      saturation={this.state.currentState.cams[this.state.expanded].chip.saturation}
+      lumMix={this.state.currentState.cams[this.state.expanded].chip.lumMix}
       input={this.state.expanded}
       sendCommand={(cmd:string,val:any)=>this.sendCommand(cmd,val)}
       ></Expanded>
@@ -167,7 +164,7 @@ class CameraPageInner extends React.Component<CameraPageInnerProps, AudioPageInn
     if(this.props.mobile){
 
       var topBar = []
-      for(var i = 0; i<Object.keys(this.state.currentState.cameraControl.cams).length; i++){
+      for(var i = 0; i<Object.keys(this.state.currentState.cams).length; i++){
         const x = i+1
         topBar.push(
         <div className={this.state.mobileCam != i+1?"cam-mobile-selecter":"cam-mobile-selecter active"}
@@ -180,12 +177,12 @@ class CameraPageInner extends React.Component<CameraPageInnerProps, AudioPageInn
 
       return(
         <div className="cam-holder-holder mobile">
-        <div style={{gridTemplateColumns:"repeat("+ Object.keys(this.state.currentState.cameraControl.cams).length  +",1fr)"}} className="cam-mobile-selecter-holder">
+        <div style={{gridTemplateColumns:"repeat("+ Object.keys(this.state.currentState.cams).length  +",1fr)"}} className="cam-mobile-selecter-holder">
           {topBar}
         </div>
         <Cam onAir={this.state.currentState.mixEffects[0].sources.program==this.state.mobileCam}
         name={this.state.currentState.settings.inputs["input"+(this.state.mobileCam)].properties.shortName} 
-        currentState={this.state.currentState.cameraControl.cams[this.state.mobileCam]}
+        currentState={this.state.currentState.cams[this.state.mobileCam]}
         signalR={this.props.signalR}
         device={this.props.device}
         mobile={this.props.mobile}
@@ -199,12 +196,12 @@ class CameraPageInner extends React.Component<CameraPageInnerProps, AudioPageInn
 
     else{
       var cams=[]
-      for(var i = 0; i<Object.keys(this.state.currentState.cameraControl.cams).length; i++){
+      for(var i = 0; i<Object.keys(this.state.currentState.cams).length; i++){
           cams.push( 
             
           <Cam onAir={this.state.currentState.mixEffects[0].sources.program==i+1}
            name={this.state.currentState.settings.inputs["input"+(i+1)].properties.shortName} 
-          currentState={this.state.currentState.cameraControl.cams[i+1]}
+          currentState={this.state.currentState.cams[i+1]}
           signalR={this.props.signalR}
           device={this.props.device}
           mobile={this.props.mobile}
@@ -213,7 +210,7 @@ class CameraPageInner extends React.Component<CameraPageInnerProps, AudioPageInn
           expandedCallback={(e:number)=>(this.state.expanded!=e)?this.setState({expanded:e}):this.setState({expanded:0})}></Cam>
           )
       }
-      return(<div className="cam-holder-holder">
+      return(<div className="cam-holder-holder" style={{gridTemplateColumns:"reapeat("+Object.keys(this.state.currentState.cams).length+"300px)"}}>
         {cams}
 
 
@@ -313,7 +310,7 @@ class Cam extends React.Component<CamProps,{page:number,coarse:number}> {
       <div className="cam-circle-holder">
           <ColourWheel
           callback={(r:number,g:number,b:number)=>this.sendCommand("LibAtem.Commands.CameraControl.CameraControlSetCommand",{Input:this.props.input,AdjustmentDomain:8,ChipFeature:this.state.page,Relative:false,R:r,G:g,B:b,Y:this.props.currentState.chip.lift.y})}
-          rgby={this.props.currentState.chip[pageId]}
+          rgby={{r:this.props.currentState.chip[pageId].r,g:this.props.currentState.chip[pageId].g,b:this.props.currentState.chip[pageId].b}}
           outerRadius = {150}
           innerRadius = {135}
           blackWidth={10}
